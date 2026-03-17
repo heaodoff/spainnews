@@ -1,0 +1,6 @@
+python-telegram-bot==21.7
+openai==1.58.1
+feedparser==6.0.11
+apscheduler==3.10.4
+pytz==2024.2
+python-dotenv==1.0.1

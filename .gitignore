@@ -1,0 +1,27 @@
+# Environment
+.env
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database
+news.db
+
+# Generated images
+images/
+
+# Logs
+*.log
+
+# Fonts (large binary files)
+fonts/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
