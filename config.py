@@ -121,6 +121,25 @@ RSS_FEEDS = [
         "category": "canarias",
         "priority": 1,
     },
+    # === General Spain news ===
+    {
+        "name": "20 Minutos — España",
+        "url": "https://www.20minutos.es/rss/",
+        "category": "general",
+        "priority": 3,
+    },
+    {
+        "name": "El País — España",
+        "url": "https://feeds.elpais.com/mrss-s/pages/ep/site/elpais.com/section/espana/portada",
+        "category": "general",
+        "priority": 3,
+    },
+    {
+        "name": "La Vanguardia — Vida",
+        "url": "https://www.lavanguardia.com/rss/vida.xml",
+        "category": "lifestyle",
+        "priority": 3,
+    },
 ]
 
 # Keywords for filtering relevant articles (Spanish + English)
@@ -139,6 +158,26 @@ KEYWORDS = [
     "Canarias", "Tenerife", "Gran Canaria", "Lanzarote", "Fuerteventura",
     "La Palma", "La Gomera", "El Hierro", "Las Palmas", "Santa Cruz",
     "canario", "insular", "archipiélago",
+    # Weather & natural events
+    "tormenta", "borrasca", "temporal", "huracán", "ciclón", "lluvia",
+    "viento", "calima", "ola de calor", "incendio", "inundación",
+    "alerta", "emergencia", "AEMET", "fenómeno", "nieve", "granizo",
+    "storm", "hurricane", "flood", "wildfire", "heatwave", "weather alert",
+    # Culture, events & lifestyle
+    "carnaval", "fiesta", "festival", "feria", "procesión", "Semana Santa",
+    "reina", "rey", "familia real", "celebración", "tradición",
+    "carnival", "festival", "royal family", "tradition", "celebration",
+    # Safety & incidents
+    "policía", "guardia civil", "accidente", "terremoto", "seísmo",
+    "evacuación", "rescate", "apagón", "corte de luz", "huelga",
+    "police", "earthquake", "blackout", "strike", "evacuation",
+    # Transport & infrastructure
+    "aeropuerto", "puerto", "carretera", "tráfico", "transporte",
+    "AVE", "Renfe", "AENA", "autopista", "metro", "guagua",
+    "airport", "ferry", "highway", "train", "transport",
+    # Health & education
+    "hospital", "médico", "SCS", "educación", "colegio", "universidad",
+    "health", "school", "university",
     # English
     "immigration", "residence", "visa", "foreigner",
     "tax", "property", "real estate", "rental", "mortgage",
@@ -147,4 +186,6 @@ KEYWORDS = [
     "law", "regulation", "decree",
     "self-employed", "healthcare", "social security",
     "Canary Islands", "Tenerife", "Gran Canaria",
+    # General Spain
+    "España", "Spain", "español", "Spanish",
 ]

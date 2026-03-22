@@ -153,6 +153,7 @@ async def poll_callbacks():
             )
             for update in updates:
                 offset = update.update_id + 1
+
                 cq = update.callback_query
                 if not cq:
                     continue
@@ -175,7 +176,13 @@ async def main():
     logger.info("Schedule: posting at %s (Madrid time)", SCHEDULE_HOURS)
     logger.info("Admin approval chat: %s", ADMIN_CHAT_ID)
 
-    scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+    scheduler = AsyncIOScheduler(
+        timezone=TIMEZONE,
+        job_defaults={
+            "misfire_grace_time": 600,  # 10 min — don't skip if slightly late
+            "coalesce": True,           # merge missed runs into one
+        },
+    )
 
     for hour in SCHEDULE_HOURS:
         scheduler.add_job(

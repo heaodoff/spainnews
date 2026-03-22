@@ -6,6 +6,7 @@ import os
 
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
+from telegram.request import HTTPXRequest
 
 from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL, ADMIN_CHAT_ID, STRIPE_LINK
 from image_gen import generate_news_image
@@ -13,10 +14,13 @@ from database import save_pending, get_pending, update_pending_status, mark_publ
 
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=TELEGRAM_BOT_TOKEN)
+# Use larger connection pool to avoid PoolTimeout when polling and posting concurrently
+request = HTTPXRequest(connection_pool_size=20, pool_timeout=10.0)
+bot = Bot(token=TELEGRAM_BOT_TOKEN, request=request)
 
 # Cache for discussion group ID
 _discussion_chat_id: int | None = None
+
 
 
 async def _get_discussion_chat_id() -> int | None:
@@ -33,6 +37,70 @@ async def _get_discussion_chat_id() -> int | None:
         except Exception:
             logger.exception("Failed to get discussion group ID")
     return _discussion_chat_id
+
+
+# Cache the channel's numeric ID
+_channel_numeric_id: int | None = None
+
+
+async def _get_channel_id() -> int | None:
+    """Get channel numeric ID (cached)."""
+    global _channel_numeric_id
+    if _channel_numeric_id is None:
+        try:
+            chat = await bot.get_chat(TELEGRAM_CHANNEL)
+            _channel_numeric_id = chat.id
+        except Exception:
+            logger.exception("Failed to get channel ID")
+    return _channel_numeric_id
+
+
+async def _find_forwarded_msg(discussion_id: int, channel_msg_id: int) -> int | None:
+    """
+    Find the auto-forwarded message in discussion group by probing recent message IDs.
+    Sends a probe reply to recent messages and checks sender_chat to find the channel post.
+    Returns the discussion group message_id or None.
+    """
+    channel_id = await _get_channel_id()
+    if not channel_id:
+        return None
+
+    try:
+        # Send a probe to get the latest message ID in the discussion group
+        probe = await bot.send_message(chat_id=discussion_id, text=".")
+        latest_id = probe.message_id
+        await bot.delete_message(chat_id=discussion_id, message_id=probe.message_id)
+
+        # Search backward from latest_id for the forwarded channel post
+        for test_id in range(latest_id - 1, max(latest_id - 15, 0), -1):
+            try:
+                probe = await bot.send_message(
+                    chat_id=discussion_id,
+                    text=".",
+                    reply_to_message_id=test_id,
+                )
+                reply_to = probe.reply_to_message
+                await bot.delete_message(chat_id=discussion_id, message_id=probe.message_id)
+
+                if not reply_to:
+                    continue
+
+                sender_chat = getattr(reply_to, 'sender_chat', None)
+                sc_id = getattr(sender_chat, 'id', None) if sender_chat else None
+
+                if sc_id == channel_id:
+                    # This is a forwarded channel post — check if it's our post
+                    # by matching text content
+                    logger.info("Found forwarded msg %d from channel in discussion", test_id)
+                    return test_id
+            except Exception:
+                continue
+
+        logger.warning("Could not find forwarded msg for channel msg %d", channel_msg_id)
+        return None
+    except Exception:
+        logger.exception("Error searching for forwarded message")
+        return None
 
 
 async def post_to_channel(processed: dict, urgent: bool = False) -> bool:
@@ -99,43 +167,32 @@ async def post_to_channel(processed: dict, urgent: bool = False) -> bool:
         detailed = processed.get("detailed_comment")
 
         if post_format == "FULL" and detailed:
-            # Wait for Telegram to auto-forward to discussion group
-            await asyncio.sleep(4)
-
             discussion_id = await _get_discussion_chat_id()
-
             if discussion_id:
-                try:
-                    # Find the auto-forwarded message in discussion group
-                    fwd_msg_id = None
-                    updates = await bot.get_updates(timeout=5, allowed_updates=[])
-                    max_uid = None
-                    for upd in updates:
-                        max_uid = upd.update_id
-                        m = upd.message
-                        if m and m.chat_id == discussion_id and getattr(m, 'is_automatic_forward', False):
-                            fwd_msg_id = m.message_id
-                            logger.info("Found auto-forwarded msg %d in discussion group", fwd_msg_id)
-                    if max_uid is not None:
-                        await bot.get_updates(offset=max_uid + 1, timeout=1, allowed_updates=[])
-
-                    if fwd_msg_id:
-                        await bot.send_message(
-                            chat_id=discussion_id,
-                            text=f"📋 *Подробный разбор:*\n\n{detailed}",
-                            reply_to_message_id=fwd_msg_id,
-                            parse_mode=ParseMode.MARKDOWN,
-                        )
-                        logger.info("Comment posted as reply to forwarded msg %d", fwd_msg_id)
-                    else:
-                        logger.warning("Auto-forwarded msg not found, posting standalone")
-                        await bot.send_message(
-                            chat_id=discussion_id,
-                            text=f"📋 *Подробный разбор:*\n\n{detailed}",
-                            parse_mode=ParseMode.MARKDOWN,
-                        )
-                except Exception:
-                    logger.exception("Failed to comment in discussion group")
+                await asyncio.sleep(5)
+                fwd_msg_id = await _find_forwarded_msg(discussion_id, message.message_id)
+                for attempt in range(3):
+                    try:
+                        if fwd_msg_id:
+                            await bot.send_message(
+                                chat_id=discussion_id,
+                                text=f"📋 *Подробный разбор:*\n\n{detailed}",
+                                reply_to_message_id=fwd_msg_id,
+                                parse_mode=ParseMode.MARKDOWN,
+                            )
+                            logger.info("Comment posted as reply to discussion msg %d", fwd_msg_id)
+                        else:
+                            logger.warning("Could not find forwarded msg, posting standalone")
+                            await bot.send_message(
+                                chat_id=discussion_id,
+                                text=f"📋 *Подробный разбор:*\n\n{detailed}",
+                                parse_mode=ParseMode.MARKDOWN,
+                            )
+                        break
+                    except Exception:
+                        logger.exception("Failed to post comment (attempt %d/3)", attempt + 1)
+                        if attempt < 2:
+                            await asyncio.sleep(3)
         else:
             logger.info("SHORT format — no comment needed")
 
@@ -172,16 +229,25 @@ async def send_for_approval(processed: dict, approval_info: dict, urgent: bool =
     cta = approval_info.get("cta_text", "")
     suggest_svc = approval_info.get("suggest_service", False)
 
+    # Post text preview
+    short_post = processed.get("short_post", "")
+    detailed_comment = processed.get("detailed_comment", "")
+
     msg = (
         f"📋 *СОГЛАСОВАНИЕ ПОСТА* \\#{pid}\n\n"
-        f"*Заголовок:* {headline}\n\n"
-        f"*Почему важная:*\n• {reason}\n\n"
-        f"*Рекомендация:* {rec}\n\n"
+        f"{'🚨 СРОЧНАЯ НОВОСТЬ\n\n' if urgent else ''}"
+        f"*Заголовок:* {headline}\n"
+        f"*Рекомендация:* {rec}\n"
         f"*Добавить услугу:* {'✅ ДА' if suggest_svc else '❌ НЕТ'}\n"
-        f"{'*Почему:* ' + svc_reason if svc_reason else ''}\n"
-        f"{'*CTA:* ' + cta if cta else ''}\n\n"
-        f"{'🚨 СРОЧНАЯ НОВОСТЬ' if urgent else ''}"
+        f"{'*Почему:* ' + svc_reason + chr(10) if svc_reason else ''}"
+        f"{'*CTA:* ' + cta + chr(10) if cta else ''}\n"
+        f"━━━━━━━━━━━━━━\n"
+        f"*ТЕКСТ ПОСТА:*\n{short_post}\n"
     )
+    if detailed_comment:
+        # Trim comment if too long for Telegram (4096 char limit)
+        preview = detailed_comment if len(detailed_comment) <= 1500 else detailed_comment[:1500] + "..."
+        msg += f"\n━━━━━━━━━━━━━━\n*КОММЕНТАРИЙ:*\n{preview}\n"
 
     # Inline keyboard with 4 options
     keyboard = [
