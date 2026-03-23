@@ -35,27 +35,46 @@ def is_published(url: str) -> bool:
 
 
 def is_duplicate_topic(title: str) -> bool:
-    """Check if a similar topic was already published (fuzzy match on normalized title)."""
+    """Check if a similar topic was already published (fuzzy match on normalized title).
+
+    Uses two checks:
+    1. Word overlap on normalized title (>50% = duplicate)
+    2. Key entity overlap — proper nouns, numbers, names (>60% = duplicate)
+    This catches the same story reported by different sources with different wording.
+    """
     normalized = _normalize_title(title)
+    entities = _extract_entities(title)
     if not normalized:
         return False
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.execute("SELECT title_normalized FROM published ORDER BY id DESC LIMIT 200")
+    cur = conn.execute("SELECT title, title_normalized FROM published ORDER BY id DESC LIMIT 300")
     rows = cur.fetchall()
     conn.close()
 
-    for (prev,) in rows:
-        if not prev:
+    words_new = set(normalized.split())
+
+    for (prev_title, prev_norm) in rows:
+        if not prev_norm:
             continue
-        # Check word overlap — if >60% of words match, it's a duplicate topic
-        words_new = set(normalized.split())
-        words_old = set(prev.split())
+        words_old = set(prev_norm.split())
         if not words_new or not words_old:
             continue
+
+        # Check 1: word overlap
         overlap = len(words_new & words_old)
-        similarity = overlap / min(len(words_new), len(words_old))
-        if similarity > 0.6:
+        smaller = min(len(words_new), len(words_old))
+        if smaller > 0 and overlap / smaller > 0.5:
             return True
+
+        # Check 2: entity overlap (names, numbers, orgs)
+        if entities and prev_title:
+            prev_entities = _extract_entities(prev_title)
+            if prev_entities:
+                ent_overlap = len(entities & prev_entities)
+                ent_smaller = min(len(entities), len(prev_entities))
+                if ent_smaller > 0 and ent_overlap / ent_smaller > 0.6 and ent_overlap >= 2:
+                    return True
+
     return False
 
 
@@ -63,8 +82,33 @@ def _normalize_title(title: str) -> str:
     """Normalize title for comparison: lowercase, remove short words and punctuation."""
     import re
     text = re.sub(r'[^\w\s]', '', title.lower())
-    words = [w for w in text.split() if len(w) > 3]
+    # Remove common stopwords in Spanish and English
+    stopwords = {
+        'para', 'como', 'esta', 'este', 'esto', 'que', 'del', 'los', 'las',
+        'una', 'uno', 'por', 'con', 'son', 'sus', 'más', 'pero', 'sobre',
+        'entre', 'desde', 'hasta', 'tras', 'ante', 'bajo', 'según', 'hacia',
+        'the', 'and', 'for', 'with', 'from', 'that', 'this', 'are', 'has',
+        'have', 'will', 'been', 'could', 'would', 'should', 'into', 'about',
+        'new', 'its', 'all', 'also', 'than', 'they', 'their', 'what', 'when',
+    }
+    words = [w for w in text.split() if len(w) > 2 and w not in stopwords]
     return ' '.join(words)
+
+
+def _extract_entities(title: str) -> set:
+    """Extract key entities from title: capitalized words, numbers, acronyms."""
+    import re
+    entities = set()
+    # Capitalized words (proper nouns, names, organizations)
+    for word in re.findall(r'\b[A-ZÁÉÍÓÚÑÜ][a-záéíóúñü]{2,}\b', title):
+        entities.add(word.lower())
+    # Acronyms (2+ uppercase letters)
+    for word in re.findall(r'\b[A-ZÁÉÍÓÚÑÜ]{2,}\b', title):
+        entities.add(word.lower())
+    # Numbers with context (percentages, amounts)
+    for num in re.findall(r'\d+[.,]?\d*\s*%?', title):
+        entities.add(num.strip())
+    return entities
 
 
 def mark_published(url: str, title: str, source: str):
