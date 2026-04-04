@@ -20,7 +20,7 @@ SCHEDULE_HOURS = [9, 12, 16, 20]
 TIMEZONE = "Europe/Madrid"
 
 # How many articles to post per run
-MAX_ARTICLES_PER_RUN = 5
+MAX_ARTICLES_PER_RUN = 4
 
 # Admin approval
 ADMIN_CHAT_ID = int(os.environ["ADMIN_CHAT_ID"])
