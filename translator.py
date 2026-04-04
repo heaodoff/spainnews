@@ -225,10 +225,11 @@ def process_article(article: dict) -> dict | None:
 ---
 ## ШАГ 4 — ИЗОБРАЖЕНИЕ (для DALL-E)
 Опиши СЦЕНУ для фоновой фотографии (НЕ текст, только визуал):
-- что изображено: город, здание, документы, деньги, супермаркет и т.д.
-- настроение: тёмное, кинематографичное, editorial
-- пример: "modern Spanish apartment building at sunset, dark moody tones"
-- пример: "euro coins and financial documents on dark desk, dramatic lighting"
+- что изображено: город, здание, документы, деньги, рынок и т.д.
+- настроение: СВЕТЛОЕ, тёплое, средиземноморское, яркое
+- пример: "white Mediterranean apartment building, blue sky, palm trees, golden sunlight"
+- пример: "colorful Spanish market with fresh produce, warm natural light"
+- НЕ пиши мрачные/тёмные описания — только светлые и приятные
 - НЕ пиши текст, заголовки, слова — только описание сцены на АНГЛИЙСКОМ
 ---
 ## ШАГ 5 — ГЕНЕРАЦИЯ

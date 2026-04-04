@@ -62,11 +62,16 @@ CATEGORY_STYLES = {
 
 # DALL-E scene hints per category (English, no text instructions)
 CATEGORY_SCENES = {
-    "🏠 Недвижимость": "modern apartment building in Mediterranean city, warm sunlight",
-    "💶 Деньги": "euro banknotes and coins on a desk, financial documents, warm lighting",
-    "🛂 Иммиграция": "passport and travel documents on a desk, airport in background",
-    "⚖️ Законы": "scales of justice, Spanish courthouse interior, dramatic lighting",
-    "🛒 Быт и цены": "Spanish supermarket aisle or local market, everyday life",
+    "🏠 Недвижимость": "white Mediterranean apartment building with terrace, blue sky, palm trees, golden sunlight",
+    "💶 Деньги": "euro coins and calculator on bright marble table, natural daylight, clean modern office",
+    "🛂 Иммиграция": "Spanish passport office, bright waiting room, documents on counter, natural light from window",
+    "⚖️ Законы": "modern Spanish courthouse exterior, white stone building, blue sky, sunny day",
+    "🛒 Быт и цены": "colorful Spanish market with fresh fruit and vegetables, warm natural light, vibrant",
+    "🌪 Погода и стихия": "dramatic sky over Spanish coastline, storm clouds with rays of sunlight breaking through",
+    "🎭 Культура и события": "vibrant Spanish festival, colorful decorations, sunny plaza, people celebrating",
+    "🚨 Происшествия": "Spanish city street, police car with blue lights, daytime, urban setting",
+    "🚗 Транспорт": "modern Spanish train station, bright architecture, travelers, natural light",
+    "🏥 Здоровье": "modern Spanish hospital exterior, white building, blue sky, clean medical setting",
 }
 
 
@@ -107,15 +112,15 @@ def _wrap(text: str, font, max_w: int, draw: ImageDraw.Draw) -> list[str]:
 
 
 def _gradient_overlay(img: Image.Image) -> Image.Image:
-    """Apply dark gradient from bottom (covers ~60% of image)."""
+    """Apply subtle gradient from bottom for text readability (covers ~40% of image)."""
     overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     draw = ImageDraw.Draw(overlay)
     h = img.size[1]
-    start = int(h * 0.3)  # gradient starts at 30% from top
+    start = int(h * 0.55)  # gradient starts at 55% from top (only bottom 45%)
     for y in range(start, h):
         t = (y - start) / (h - start)
-        alpha = int(220 * t)  # 0 → 220
-        draw.line([(0, y), (img.size[0], y)], fill=(10, 10, 30, alpha))
+        alpha = int(180 * t)  # 0 → 180 (was 220 — softer now)
+        draw.line([(0, y), (img.size[0], y)], fill=(20, 20, 40, alpha))
     return Image.alpha_composite(img.convert("RGBA"), overlay)
 
 
@@ -127,10 +132,12 @@ def _generate_dalle_background(image_prompt: str, category: str) -> Image.Image 
     dalle_prompt = (
         f"Create a modern editorial cover photo for a news article. "
         f"Scene: {image_prompt if image_prompt else scene}. "
-        f"Style: cinematic, moody, dark tones with navy/black gradient, "
-        f"soft dramatic lighting, shallow depth of field, minimalistic, premium editorial look. "
+        f"Style: bright, clean, modern editorial photography. "
+        f"Natural warm lighting, Mediterranean sunlight, vivid but not oversaturated colors. "
+        f"Shallow depth of field, minimalistic composition, premium magazine aesthetic. "
+        f"NOT dark, NOT moody, NOT gloomy — light and inviting. "
         f"NO text, NO letters, NO words, NO watermarks. "
-        f"Square format 1:1. Professional news magazine aesthetic."
+        f"Square format 1:1."
     )
 
     try:
@@ -160,11 +167,11 @@ def _generate_dalle_background(image_prompt: str, category: str) -> Image.Image 
 
 
 def _gradient_background(urgent: bool = False) -> Image.Image:
-    """Fallback: pure gradient background."""
+    """Fallback: gradient background — light and modern."""
     img = Image.new("RGB", (W, H))
     draw = ImageDraw.Draw(img)
-    top = "#2D0000" if urgent else "#1A1A2E"
-    bottom = "#1A1A2E" if urgent else "#16213E"
+    top = "#8B0000" if urgent else "#1E3A5F"
+    bottom = "#1E3A5F" if urgent else "#0D253F"
     r1, g1, b1 = _hex(top)
     r2, g2, b2 = _hex(bottom)
     for y in range(H):
