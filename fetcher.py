@@ -4,27 +4,19 @@ from datetime import datetime, timedelta, timezone
 
 import feedparser
 
-from config import RSS_FEEDS, KEYWORDS
+from config import RSS_FEEDS
 from database import is_published, is_duplicate_topic
 
 logger = logging.getLogger(__name__)
 
 
 def _is_relevant(title: str, summary: str, category: str = "") -> bool:
-    """Check if article matches our keywords.
+    """All articles from our curated feeds are considered relevant.
 
-    For Spain-specific feeds (expats, canarias, economy, legislation, tourism, finance),
-    all articles are considered relevant — the feed itself is the filter.
-    For general feeds, keyword matching is applied.
+    The AI scoring (score 1-5) in translator.py handles filtering —
+    it will SKIP articles that aren't interesting to the audience.
     """
-    # These feed categories are already filtered by topic — accept all
-    always_relevant = {"expats", "canarias", "economy", "legislation", "finance", "tourism", "real_estate"}
-    if category in always_relevant:
-        return True
-
-    # For general/lifestyle feeds, check keywords
-    text = (title + " " + summary).lower()
-    return any(kw.lower() in text for kw in KEYWORDS)
+    return True
 
 
 def fetch_articles(max_age_hours: int = 24) -> list[dict]:

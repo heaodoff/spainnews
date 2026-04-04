@@ -224,30 +224,34 @@ async def send_for_approval(processed: dict, approval_info: dict, urgent: bool =
     # Build approval message
     headline = processed.get("title", "")[:100]
     rec = approval_info.get("recommendation", "?")
-    reason = approval_info.get("reason", "")
     svc_reason = approval_info.get("service_reason", "")
     cta = approval_info.get("cta_text", "")
     suggest_svc = approval_info.get("suggest_service", False)
 
-    # Post text preview
+    # Post metadata
     short_post = processed.get("short_post", "")
     detailed_comment = processed.get("detailed_comment", "")
+    category = processed.get("category", "")
+    score = processed.get("score", "?")
+    post_format = processed.get("format", "FULL")
+    source = processed.get("source", "")
 
     msg = (
-        f"📋 *СОГЛАСОВАНИЕ ПОСТА* \\#{pid}\n\n"
-        f"{'🚨 СРОЧНАЯ НОВОСТЬ\n\n' if urgent else ''}"
-        f"*Заголовок:* {headline}\n"
-        f"*Рекомендация:* {rec}\n"
-        f"*Добавить услугу:* {'✅ ДА' if suggest_svc else '❌ НЕТ'}\n"
-        f"{'*Почему:* ' + svc_reason + chr(10) if svc_reason else ''}"
-        f"{'*CTA:* ' + cta + chr(10) if cta else ''}\n"
-        f"━━━━━━━━━━━━━━\n"
-        f"*ТЕКСТ ПОСТА:*\n{short_post}\n"
+        f"📋 *\\#{pid}*"
+        f"{'  🚨 СРОЧНО' if urgent else ''}\n"
+        f"{category}  •  {post_format}  •  {score}/5\n"
+        f"*{headline}*\n"
+        f"{'📎 ' + source + chr(10) if source else ''}"
+        f"*Рек:* {rec}\n"
     )
+    if suggest_svc:
+        msg += f"💡 *Услуга:* {svc_reason}\n{'*CTA:* ' + cta + chr(10) if cta else ''}"
+
+    msg += f"\n━━━━━━━━━━━━━━\n{short_post}\n"
+
     if detailed_comment:
-        # Trim comment if too long for Telegram (4096 char limit)
-        preview = detailed_comment if len(detailed_comment) <= 1500 else detailed_comment[:1500] + "..."
-        msg += f"\n━━━━━━━━━━━━━━\n*КОММЕНТАРИЙ:*\n{preview}\n"
+        preview = detailed_comment if len(detailed_comment) <= 1200 else detailed_comment[:1200] + "..."
+        msg += f"\n━━━━━━━━━━━━━━\n*РАЗБОР:*\n{preview}\n"
 
     # Inline keyboard with 4 options
     keyboard = [

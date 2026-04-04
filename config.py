@@ -20,7 +20,7 @@ SCHEDULE_HOURS = [9, 12, 16, 20]
 TIMEZONE = "Europe/Madrid"
 
 # How many articles to post per run
-MAX_ARTICLES_PER_RUN = 3
+MAX_ARTICLES_PER_RUN = 5
 
 # Admin approval
 ADMIN_CHAT_ID = int(os.environ["ADMIN_CHAT_ID"])
@@ -138,6 +138,31 @@ RSS_FEEDS = [
         "name": "La Vanguardia — Vida",
         "url": "https://www.lavanguardia.com/rss/vida.xml",
         "category": "lifestyle",
+        "priority": 3,
+    },
+    # === Additional sources ===
+    {
+        "name": "El Diario",
+        "url": "https://www.eldiario.es/rss/",
+        "category": "general",
+        "priority": 3,
+    },
+    {
+        "name": "RTVE Noticias",
+        "url": "https://www.rtve.es/rss/noticias.xml",
+        "category": "general",
+        "priority": 3,
+    },
+    {
+        "name": "Idealista News",
+        "url": "https://www.idealista.com/news/feed",
+        "category": "real_estate",
+        "priority": 1,
+    },
+    {
+        "name": "Google News — España",
+        "url": "https://news.google.com/rss/search?q=España+noticias+hoy&hl=es&gl=ES&ceid=ES:es",
+        "category": "general",
         "priority": 3,
     },
 ]
