@@ -41,26 +41,36 @@ CATEGORY_HASHTAGS = {
 
 
 # Clichés that keep sneaking back in despite prompt instructions.
-# Regex → replacement. Match whole sentences/clauses when removing, so we
-# don't leave dangling fragments ("..., чтобы not miss the chance").
+# Regex → replacement. Match whole sentences/clauses when removing, and
+# absorb dangling conjunctions ("поэтому", "чтобы", "и") that precede the
+# removed phrase — otherwise we end up with "до 30 июня, поэтому."
+_DANGLE = r"(?:[,—–\-]\s*(?:поэтому|чтобы|и|а|но)\s+)?\s*"
 CLICHE_REPLACEMENTS = [
-    # Full clause/sentence removals — match from last punctuation to end-of-sentence
-    (r"[,—–\-]?\s*чтобы\s+не\s+упустить[^.!?\n]*[.!?]?", "."),
-    (r"[,—–\-]?\s*не\s+упусти\s+[^.!?\n]*[.!?]?", "."),
-    (r"[,—–\-]?\s*получить\s+финансовую\s+поддержку[.!?]?", "."),  # dangling fragment
-    (r"[,—–\-]?\s*это\s+твой\s+шанс[^.!?\n]*[.!?]?", "."),
+    (_DANGLE + r"чтобы\s+не\s+упустить[^.!?\n]*[.!?]?", "."),
+    (_DANGLE + r"не\s+упусти\s+[^.!?\n]*[.!?]?", "."),
+    (_DANGLE + r"не\s+упустить\s+[^.!?\n]*[.!?]?", "."),
+    (r"[,—–\-]?\s*получить\s+финансовую\s+поддержку[.!?]?", "."),
+    (_DANGLE + r"это\s+твой\s+шанс[^.!?\n]*[.!?]?", "."),
     # Phrase-level replacements (keep the surrounding sentence)
     (r"откро[еёю]т\s+новые\s+возможности", "появятся новые варианты"),
     (r"значительно\s+изменит\s+жизнь", "заметно повлияет на быт"),
-    (r"в\s+условиях\s+экономической\s+неопределённости[,\s]*", ""),
+    (r"в\s+условиях\s+экономическ(?:ой|ого)\s+(?:неопределённости|нестабильности)[,\s]*", ""),
     (r"стремится\s+поддержать", "хочет поддержать"),
     (r"значительный\s+шаг\s+в\s+сторону", "шаг к"),
     (r"растущей\s+потребности\s+в", "нехватки"),
     (r"для\s+русскоязычных\s+иммигрантов", "для тех, кто живёт в Испании"),
-    # Cleanup: double periods, orphan commas, double spaces left by removals
+    # Cleanup artifacts
     (r"\.{2,}", "."),
     (r"\s+\.", "."),
+    (r"\s+,", ","),
     (r"(?m)^\s*[,.]\s*", ""),
+    # Dangling trailing "поэтому", "так что" when the follow-up was stripped
+    (r",\s*поэтому\.", "."),
+    (r",\s*так\s+что\.", "."),
+    # Trailing orphan conjunctions left after phrase removal
+    (r"\s+(?:и|а|но|или)\s*\.", "."),
+    (r",\s*\.", "."),
+    (r"(?m),\s*$", ""),
 ]
 
 
