@@ -131,6 +131,22 @@ def get_published_count() -> int:
     return count
 
 
+def get_recent_topics(days: int = 3) -> list[str]:
+    """Return titles of articles published in the last N days.
+
+    Used for topic-fatigue detection: if a new candidate covers the
+    same ground as something published recently, its score gets reduced.
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.execute(
+        "SELECT title FROM published WHERE published_at >= datetime('now', ?) ORDER BY id DESC LIMIT 40",
+        (f"-{days} days",),
+    )
+    titles = [row[0] for row in cur.fetchall()]
+    conn.close()
+    return titles
+
+
 # ── Pending posts (approval queue) ──
 
 def _init_pending():

@@ -288,6 +288,46 @@ async def run_viral_post():
         logger.exception("Error in viral post generation")
 
 
+# Friday tips — short practical advice for living in Spain
+FRIDAY_TIPS = [
+    "как быстро оформить empadronamiento если живёшь без контракта",
+    "как оспорить счёт за электричество в Испании",
+    "что делать если украли документы в Испании — пошаговая инструкция",
+    "как сэкономить на штрафе за превышение скорости в Испании",
+    "как получить скидку на транспорт по возрасту/семье (Tarjeta Familia Numerosa)",
+    "как правильно разорвать контракт аренды без штрафа",
+    "что проверить перед покупкой б/у автомобиля в Испании",
+    "как открыть cuenta atrás — ВНЖ на основании оседлости",
+    "как проверить долги перед покупкой квартиры (nota simple)",
+    "как получить NIE без записи — срочные варианты",
+]
+
+
+async def run_friday_tip():
+    """Generate a practical tip post — short and actionable, for Friday."""
+    import random
+    logger.info("--- Generating Friday tip ---")
+    try:
+        topic = random.choice(FRIDAY_TIPS)
+        processed = generate_viral_post(topic=topic)
+        if not processed:
+            logger.warning("Failed to generate Friday tip")
+            return
+        processed["title"] = f"Совет пятницы: {topic}"
+        approval_info = {
+            "needs_approval": True,
+            "reason": "Совет пятницы — практический пост",
+            "recommendation": "Практический совет",
+            "suggest_service": False,
+            "service_reason": "",
+            "cta_text": "",
+        }
+        await send_for_approval(processed, approval_info, urgent=False)
+        logger.info("Friday tip queued: %s", topic)
+    except Exception:
+        logger.exception("Error in Friday tip generation")
+
+
 async def poll_callbacks():
     """Poll for admin callback button presses (approve/reject)."""
     offset = None
@@ -377,6 +417,14 @@ async def main():
         CronTrigger(day_of_week="wed", hour=14, minute=0, timezone=TIMEZONE),
         id="weekly_poll",
         name="Weekly poll on Wednesday",
+    )
+
+    # Friday tip — Friday at 13:00 (practical advice before weekend)
+    scheduler.add_job(
+        run_friday_tip,
+        CronTrigger(day_of_week="fri", hour=13, minute=0, timezone=TIMEZONE),
+        id="friday_tip",
+        name="Friday practical tip",
     )
 
     scheduler.start()

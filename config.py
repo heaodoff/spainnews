@@ -148,22 +148,43 @@ RSS_FEEDS = [
         "priority": 3,
     },
     {
-        "name": "RTVE Noticias",
-        "url": "https://www.rtve.es/rss/noticias.xml",
-        "category": "general",
-        "priority": 3,
-    },
-    {
-        "name": "Idealista News",
-        "url": "https://www.idealista.com/news/feed",
-        "category": "real_estate",
-        "priority": 1,
-    },
-    {
         "name": "Google News — España",
         "url": "https://news.google.com/rss/search?q=España+noticias+hoy&hl=es&gl=ES&ceid=ES:es",
         "category": "general",
         "priority": 3,
+    },
+    # === More Canary Islands coverage ===
+    {
+        "name": "Google News — Tenerife",
+        "url": "https://news.google.com/rss/search?q=tenerife+noticias&hl=es&gl=ES&ceid=ES:es",
+        "category": "canarias",
+        "priority": 1,
+    },
+    {
+        "name": "Google News — Gran Canaria",
+        "url": "https://news.google.com/rss/search?q=gran+canaria+noticias&hl=es&gl=ES&ceid=ES:es",
+        "category": "canarias",
+        "priority": 1,
+    },
+    # === Regional coverage for expat hubs ===
+    {
+        "name": "Google News — Costa del Sol",
+        "url": "https://news.google.com/rss/search?q=costa+del+sol+malaga+noticias&hl=es&gl=ES&ceid=ES:es",
+        "category": "general",
+        "priority": 2,
+    },
+    {
+        "name": "Google News — Murcia",
+        "url": "https://news.google.com/rss/search?q=murcia+noticias+extranjeros&hl=es&gl=ES&ceid=ES:es",
+        "category": "general",
+        "priority": 2,
+    },
+    # === Lifestyle / practical for foreigners ===
+    {
+        "name": "Google News — Expats Spain",
+        "url": "https://news.google.com/rss/search?q=expats+spain+foreigners&hl=en&gl=ES&ceid=ES:en",
+        "category": "expats",
+        "priority": 2,
     },
 ]
 
