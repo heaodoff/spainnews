@@ -4,11 +4,12 @@ New flow: score article (1-5) → decide SKIP/SHORT/FULL → generate post + com
 """
 import logging
 import re
+from datetime import datetime
 
 from openai import OpenAI
 
 from config import OPENAI_API_KEY, OPENAI_MODEL
-from article_parser import fetch_article_text
+from article_parser import fetch_article_text, resolve_url
 from database import get_recent_topics
 
 logger = logging.getLogger(__name__)
@@ -39,12 +40,32 @@ CATEGORY_HASHTAGS = {
 }
 
 
+# Clichés that keep sneaking back in despite prompt instructions.
+# Regex → replacement (or empty string to remove the whole phrase).
+CLICHE_REPLACEMENTS = [
+    (r",?\s*не упусти\s+(?:эту\s+)?(?:возможность|шанс|свой шанс)[!.]?", ""),
+    (r"не упусти возможность[!.]?", ""),
+    (r"это твой шанс[!.]?", ""),
+    (r"откро[еёю]т\s+новые\s+возможности", "появятся новые варианты"),
+    (r"значительно\s+изменит\s+жизнь", "заметно повлияет на быт"),
+    (r"в\s+условиях\s+экономической\s+неопределённости[,\s]*", ""),
+    (r"в\s+рамках\s+борьбы\s+с[\s\w]+?[,.]", ""),
+    (r"стремится\s+поддержать", "хочет поддержать"),
+    (r"значительный\s+шаг\s+в\s+сторону", "шаг к"),
+    (r"растущей\s+потребности\s+в", "нехватки"),
+    (r"для\s+русскоязычных\s+иммигрантов", "для тех, кто живёт в Испании"),
+]
+
+
 def _clean_text(text: str) -> str:
     """Post-process AI output: trim trailing spaces (MD line breaks look weird
     in Telegram), normalize number formats (500,000 → 500 000), collapse
-    excessive blank lines."""
+    excessive blank lines, strip clichés the prompt can't fully prevent."""
     if not text:
         return text
+    # Strip forbidden clichés
+    for pattern, repl in CLICHE_REPLACEMENTS:
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
     # Remove trailing whitespace on each line (kills "  \n" markdown-breaks)
     text = re.sub(r"[ \t]+\n", "\n", text)
     text = re.sub(r"[ \t]+$", "", text, flags=re.MULTILINE)
@@ -218,6 +239,12 @@ def process_article(article: dict) -> dict | None:
     """
     image_url = article.get("image_url", "")
     image_note = f"\nИзображение из статьи: {image_url}" if image_url else ""
+
+    # Google News etc. give us a proxy URL — resolve to the real article first.
+    # This also makes the "source" link in the post point to the actual outlet.
+    resolved = resolve_url(article.get("url", ""))
+    if resolved and resolved != article.get("url"):
+        article["url"] = resolved
 
     # Try to fetch the FULL article body (RSS summary is usually 1-2 sentences,
     # which isn't enough to extract concrete facts, € amounts, deadlines).
@@ -428,6 +455,8 @@ COMMENT:
 - Если в статье нет названия формы — не придумывай её номер
 - Если факта нет — просто не пиши этот пункт, лучше меньше, но правда
 ---
+
+📅 СЕГОДНЯ: {datetime.now().strftime("%d %B %Y")} — используй ЭТОТ год для контекста "с 1 апреля" и подобных относительных дат в статье, если в самой статье год не указан. НЕ пиши 2022, 2023, 2024 если это прошлое.
 
 НОВОСТЬ:
 Источник: {article['source']}

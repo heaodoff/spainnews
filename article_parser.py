@@ -8,6 +8,7 @@ Strategy:
 Returns a plain text string (first ~5000 chars) or empty string on failure.
 """
 import logging
+import re
 
 import httpx
 from bs4 import BeautifulSoup
@@ -36,6 +37,30 @@ ARTICLE_SELECTORS = [
 STRIP_TAGS = ["script", "style", "nav", "header", "footer", "aside",
               "form", "noscript", "iframe", "svg", ".advertisement",
               ".related", ".share", ".comments", ".newsletter"]
+
+
+def resolve_url(url: str, timeout: int = 8) -> str:
+    """For Google News / aggregator URLs, follow redirects to reach the
+    original article. Returns the final URL or the input if it fails."""
+    if not url or not url.startswith("http"):
+        return url
+    if "news.google.com" not in url:
+        return url
+    try:
+        with httpx.Client(timeout=timeout, follow_redirects=True,
+                          headers={"User-Agent": UA}) as client:
+            resp = client.get(url)
+            final = str(resp.url)
+            # Google sometimes returns a consent page — try to dig out
+            # the real target from the HTML or return the original anyway.
+            if "consent.google.com" in final:
+                m = re.search(r'data-url="([^"]+)"', resp.text or "")
+                if m:
+                    return m.group(1)
+                return url
+            return final
+    except Exception:
+        return url
 
 
 def fetch_article_text(url: str, timeout: int = 12) -> str:
