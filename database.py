@@ -132,19 +132,42 @@ def get_published_count() -> int:
 
 
 def get_recent_topics(days: int = 3) -> list[str]:
-    """Return titles of articles published in the last N days.
+    """Return titles of articles published AND queued-for-approval in last N days.
 
-    Used for topic-fatigue detection: if a new candidate covers the
-    same ground as something published recently, its score gets reduced.
+    Used for topic-fatigue detection: if a new candidate covers the same
+    ground as something recent (published or just pending), its score gets
+    reduced. Including pending_posts prevents flooding the approval queue
+    with duplicates of the same story from different sources.
     """
     conn = sqlite3.connect(DB_PATH)
-    cur = conn.execute(
+    cur1 = conn.execute(
         "SELECT title FROM published WHERE published_at >= datetime('now', ?) ORDER BY id DESC LIMIT 40",
         (f"-{days} days",),
     )
-    titles = [row[0] for row in cur.fetchall()]
+    titles = [row[0] for row in cur1.fetchall()]
+
+    # Also include pending/approved posts — same story from another source
+    # might be awaiting approval and shouldn't be duplicated.
+    try:
+        cur2 = conn.execute(
+            "SELECT article_title FROM pending_posts "
+            "WHERE created_at >= datetime('now', ?) "
+            "AND status IN ('pending','approved','published') "
+            "ORDER BY id DESC LIMIT 40",
+            (f"-{days} days",),
+        )
+        titles.extend(row[0] for row in cur2.fetchall() if row[0])
+    except sqlite3.OperationalError:
+        pass  # table not initialized yet
+
     conn.close()
-    return titles
+    # Deduplicate while preserving order
+    seen, out = set(), []
+    for t in titles:
+        if t and t not in seen:
+            seen.add(t)
+            out.append(t)
+    return out
 
 
 # ── Pending posts (approval queue) ──
